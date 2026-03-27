@@ -1,0 +1,35 @@
+# Build output
+target/
+
+# Maven wrapper (optional, some teams commit this)
+!.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+
+# Logs
+*.log
+backend-run*.log
+startup_error*.log
+
+# Environment / secrets
+.env
+.env.*
+application-local.properties
+application-local.yml
+
+# Uploaded files (runtime data)
+uploads/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# SQL scripts (dev only)
+reset_passwords.sql
