@@ -34,18 +34,26 @@ public class AuthService {
         authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
 
         // Treat null accountStatus as ACTIVE (backward compat for existing rows)
         AccountStatus status = user.getAccountStatus() != null
                 ? user.getAccountStatus()
                 : AccountStatus.ACTIVE;
 
-        if (status == AccountStatus.PENDING) {
-            throw new RuntimeException("Tu cuenta está pendiente de aprobación. Revisa tu correo.");
+        if (status == AccountStatus.PENDING_APPROVAL) {
+            throw new RuntimeException("Tu cuenta está pendiente de aprobación. Revisa tu correo o contacta al administrador.");
         }
-        if (status == AccountStatus.SUSPENDED) {
-            throw new RuntimeException("Tu cuenta ha sido suspendida. Contacta al administrador.");
+        if (status == AccountStatus.PENDING_PAYMENT) {
+            throw new RuntimeException("Tu cuenta está pendiente de pago. Revisa WhatsApp o contacta al administrador.");
+        }
+        if (status == AccountStatus.INACTIVE || status.name().equals("SUSPENDED")) {
+            throw new RuntimeException("Tu cuenta no está activada por término de periodo o está suspendida. Contacta al administrador.");
+        }
+        
+        // Expiration check
+        if (user.getExpirationDate() != null && user.getExpirationDate().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Tu cuenta no está activada por término de periodo. Contacta al administrador para renovar.");
         }
 
         String token = tokenProvider.generateToken(user);
@@ -57,14 +65,15 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
+            throw new RuntimeException("El correo ya se encuentra registrado.");
         }
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
+                .phone(request.getPhone())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
-                .accountStatus(AccountStatus.PENDING)
+                .accountStatus(AccountStatus.PENDING_APPROVAL)
                 .customThreshold(70)
                 .build();
         userRepository.save(user);
@@ -129,6 +138,19 @@ public class AuthService {
     }
 
     @Transactional
+    public void changePassword(String email, UpdatePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("La contraseña actual es incorrecta.");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    @Transactional
     public void rescueAdmin() {
         User admin = userRepository.findByEmail("admin@manual.cl")
                 .orElseGet(() -> {
@@ -156,6 +178,8 @@ public class AuthService {
                 .name(user.getName())
                 .role(user.getRole().name())
                 .userId(user.getId())
+                .accessType(user.getAccessType() != null ? user.getAccessType().name() : null)
+                .expirationDate(user.getExpirationDate() != null ? user.getExpirationDate().toString() : null)
                 .build();
     }
 }

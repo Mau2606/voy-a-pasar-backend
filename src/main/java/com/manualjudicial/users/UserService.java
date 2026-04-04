@@ -44,6 +44,8 @@ public class UserService implements UserDetailsService {
                 .role(dto.getRole() != null ? dto.getRole() : Role.USER)
                 .accountStatus(AccountStatus.ACTIVE)
                 .build();
+                
+        applyAccessType(user, dto.getAccessType());
         return userRepository.save(user);
     }
 
@@ -57,7 +59,22 @@ public class UserService implements UserDetailsService {
         if (dto.getRole() != null) {
             user.setRole(dto.getRole());
         }
+        if (dto.getAccessType() != null) {
+            applyAccessType(user, dto.getAccessType());
+        }
         return userRepository.save(user);
+    }
+    
+    private void applyAccessType(User user, AccessType type) {
+        if (type == null) return;
+        user.setAccessType(type);
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        switch (type) {
+            case ONE_DAY -> user.setExpirationDate(now.plusDays(1));
+            case THIRTY_DAYS -> user.setExpirationDate(now.plusDays(30));
+            case PERMANENT -> user.setExpirationDate(null);
+        }
     }
 
     @Transactional

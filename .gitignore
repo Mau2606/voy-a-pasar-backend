@@ -15,6 +15,7 @@ startup_error*.log
 .env.*
 application-local.properties
 application-local.yml
+application-prod.yml
 
 # Uploaded files (runtime data)
 uploads/
@@ -33,3 +34,7 @@ Desktop.ini
 
 # SQL scripts (dev only)
 reset_passwords.sql
+
+# Test/debug files
+test_output.txt
+src/main/java/test/

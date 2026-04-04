@@ -1,11 +1,13 @@
 package com.manualjudicial.manual;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/manuals")
@@ -14,15 +16,19 @@ public class ManualController {
 
     private final ManualService manualService;
 
-    /** Public catalog — no auth required. */
+    /** Public catalog — no auth required. Cached for 5 minutes. */
     @GetMapping
-    public List<Manual> getAll() {
-        return manualService.findAll();
+    public ResponseEntity<List<Manual>> getAll() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).mustRevalidate())
+                .body(manualService.findAll());
     }
 
     @GetMapping("/{id}")
-    public Manual getById(@PathVariable("id") Long id) {
-        return manualService.findById(id);
+    public ResponseEntity<Manual> getById(@PathVariable("id") Long id) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).mustRevalidate())
+                .body(manualService.findById(id));
     }
 
     @PostMapping

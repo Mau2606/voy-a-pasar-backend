@@ -13,4 +13,6 @@ public class AuthResponse {
     private String name;
     private String role;
     private Long userId;
+    private String accessType;
+    private String expirationDate;
 }

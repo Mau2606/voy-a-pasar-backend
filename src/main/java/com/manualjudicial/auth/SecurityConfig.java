@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
                         .contentTypeOptions(cto -> {})
-                        .frameOptions(fo -> fo.deny())
+                        .frameOptions(fo -> fo.sameOrigin())
                 )
 
                 // Return 401 JSON instead of redirecting to a login page

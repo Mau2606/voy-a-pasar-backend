@@ -3,6 +3,8 @@ package com.manualjudicial.questions;
 import com.manualjudicial.chapters.Chapter;
 import com.manualjudicial.chapters.ChapterRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ public class QuestionService {
         return questionRepository.findAll();
     }
 
+    @Cacheable(value = "questionsByChapter", key = "#chapterId")
     public List<Question> findByChapter(Long chapterId) {
         return questionRepository.findByChapterId(chapterId);
     }
@@ -28,6 +31,7 @@ public class QuestionService {
     /**
      * Returns up to {@code limit} randomly-selected questions for a chapter.
      * If limit is null or >= total question count, returns all questions shuffled.
+     * NOTE: Not cached because shuffle produces different results each time.
      */
     public List<Question> findByChapterWithLimit(Long chapterId, Integer limit) {
         List<Question> all = new ArrayList<>(questionRepository.findByChapterId(chapterId));
@@ -43,6 +47,7 @@ public class QuestionService {
     }
 
     @Transactional
+    @CacheEvict(value = "questionsByChapter", allEntries = true)
     public Question create(QuestionDTO dto) {
         Chapter chapter = chapterRepository.findById(dto.getChapterId())
                 .orElseThrow(() -> new RuntimeException("Chapter not found: " + dto.getChapterId()));
@@ -63,6 +68,7 @@ public class QuestionService {
     }
 
     @Transactional
+    @CacheEvict(value = "questionsByChapter", allEntries = true)
     public Question update(Long id, QuestionDTO dto) {
         Question q = findById(id);
         if (dto.getChapterId() != null) {
@@ -94,6 +100,7 @@ public class QuestionService {
     }
 
     @Transactional
+    @CacheEvict(value = "questionsByChapter", allEntries = true)
     public void delete(Long id) {
         questionRepository.deleteById(id);
     }

@@ -8,6 +8,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/telemetry")
@@ -40,6 +43,50 @@ public class TelemetryController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody List<QuestionTimeDTO> dtos) {
         telemetryService.saveQuestionTimesBatch(userDetails.getUsername(), dtos);
+        return ResponseEntity.ok().build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/sessions")
+    public Page<UserSession> getSessions(Pageable pageable) {
+        return telemetryService.getSessions(pageable);
+    }
+
+    @GetMapping("/my-sessions")
+    public Page<UserSession> getMySessions(
+            @AuthenticationPrincipal UserDetails userDetails,
+            Pageable pageable) {
+        return telemetryService.getUserSessions(userDetails.getUsername(), pageable);
+    }
+
+    @PostMapping("/session/login")
+    public ResponseEntity<Void> logLogin(
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        telemetryService.login(userDetails.getUsername(), ip, userAgent);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/session/logout")
+    public ResponseEntity<Void> logLogout(@AuthenticationPrincipal UserDetails userDetails) {
+        telemetryService.logout(userDetails.getUsername());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/quiz-attempt")
+    public ResponseEntity<Void> logQuizAttempt(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody QuizAttemptRequest request) {
+        telemetryService.saveQuizAttempt(
+                userDetails.getUsername(),
+                request.getChapterId(),
+                request.getScore(),
+                request.getStartTime(),
+                request.getSecondsUsed()
+        );
         return ResponseEntity.ok().build();
     }
 }

@@ -3,6 +3,9 @@ package com.manualjudicial.chapters;
 import com.manualjudicial.manual.Manual;
 import com.manualjudicial.manual.ManualRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,10 +18,12 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final ManualRepository manualRepository;
 
+    @Cacheable("chapters")
     public List<Chapter> findAll() {
         return chapterRepository.findAll();
     }
 
+    @Cacheable(value = "chaptersByManual", key = "#manualId")
     public List<Chapter> findByManual(Long manualId) {
         return chapterRepository.findByManualIdOrderByOrderIndexAsc(manualId);
     }
@@ -29,6 +34,10 @@ public class ChapterService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "chapters", allEntries = true),
+        @CacheEvict(value = "chaptersByManual", allEntries = true)
+    })
     public Chapter create(ChapterDTO dto) {
         Manual manual = manualRepository.findById(dto.getManualId())
                 .orElseThrow(() -> new RuntimeException("Manual not found: " + dto.getManualId()));
@@ -47,6 +56,10 @@ public class ChapterService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "chapters", allEntries = true),
+        @CacheEvict(value = "chaptersByManual", allEntries = true)
+    })
     public Chapter update(Long id, ChapterDTO dto) {
         Chapter chapter = findById(id);
         if (dto.getManualId() != null) {
@@ -70,6 +83,10 @@ public class ChapterService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "chapters", allEntries = true),
+        @CacheEvict(value = "chaptersByManual", allEntries = true)
+    })
     public Chapter setPdfUrl(Long id, String pdfUrl) {
         Chapter chapter = findById(id);
         chapter.setPdfUrl(pdfUrl);
@@ -77,6 +94,10 @@ public class ChapterService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "chapters", allEntries = true),
+        @CacheEvict(value = "chaptersByManual", allEntries = true)
+    })
     public void delete(Long id) {
         chapterRepository.deleteById(id);
     }

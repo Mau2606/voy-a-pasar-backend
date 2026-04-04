@@ -9,4 +9,7 @@ public class PasswordResetRequest {
     @NotBlank
     @Email
     private String email;
+
+    /** reCAPTCHA v2 token from the frontend */
+    private String captchaToken;
 }

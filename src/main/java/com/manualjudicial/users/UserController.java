@@ -9,6 +9,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -21,12 +24,39 @@ public class UserController {
     private final EmailService emailService;
 
     /**
-     * GET /api/admin/users?page=0&size=10&sort=id,asc
-     * Returns paginated user list.
+     * GET /api/admin/users?page=0&size=15
      */
     @GetMapping
-    public Page<User> getAll(Pageable pageable) {
-        return userRepository.findAll(pageable);
+    public Page<User> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size) {
+        
+        Sort sort = Sort.by(Sort.Direction.ASC, "accountStatus", "role", "name");
+        Pageable sortedPageable = PageRequest.of(page, size, sort);
+        return userRepository.findAll(sortedPageable);
+    }
+
+    @GetMapping("/stats")
+    public Map<String, Object> getStats() {
+        List<User> users = userRepository.findAll();
+        
+        long active = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("ACTIVE")).count();
+        long pending = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("PENDING_APPROVAL")).count();
+        long suspended = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("SUSPENDED")).count();
+        long inactive = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("INACTIVE")).count();
+        
+        long perm = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("ACTIVE") && u.getAccessType() != null && u.getAccessType().name().equals("PERMANENT")).count();
+        long thirty = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("ACTIVE") && u.getAccessType() != null && u.getAccessType().name().equals("THIRTY_DAYS")).count();
+        long one = users.stream().filter(u -> u.getAccountStatus() != null && u.getAccountStatus().name().equals("ACTIVE") && u.getAccessType() != null && u.getAccessType().name().equals("ONE_DAY")).count();
+        
+        return Map.of(
+            "active", active,
+            "pending", pending,
+            "suspended", suspended + inactive, // treating both as disabled
+            "permanent", perm,
+            "thirtyDays", thirty,
+            "oneDay", one
+        );
     }
 
     @GetMapping("/{id}")
@@ -50,33 +80,4 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * PUT /api/admin/users/{id}/approve
-     * Approves a PENDING user, sets status to ACTIVE, sends notification email.
-     */
-    @PutMapping("/{id}/approve")
-    public ResponseEntity<Map<String, String>> approveUser(@PathVariable("id") Long id) {
-        User user = userService.findById(id);
-        if (user.getAccountStatus() == AccountStatus.ACTIVE) {
-            return ResponseEntity.ok(Map.of("message", "El usuario ya está activo."));
-        }
-        user.setAccountStatus(AccountStatus.ACTIVE);
-        userRepository.save(user);
-        emailService.sendAccountApprovedEmail(user);
-        return ResponseEntity.ok(Map.of("message",
-                "Usuario aprobado: " + user.getEmail()));
-    }
-
-    /**
-     * PUT /api/admin/users/{id}/suspend
-     * Suspends a user account.
-     */
-    @PutMapping("/{id}/suspend")
-    public ResponseEntity<Map<String, String>> suspendUser(@PathVariable("id") Long id) {
-        User user = userService.findById(id);
-        user.setAccountStatus(AccountStatus.SUSPENDED);
-        userRepository.save(user);
-        return ResponseEntity.ok(Map.of("message",
-                "Usuario suspendido: " + user.getEmail()));
-    }
 }

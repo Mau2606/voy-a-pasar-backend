@@ -1,7 +1,5 @@
 package com.manualjudicial.exam;
 
-import com.manualjudicial.chapters.Chapter;
-import com.manualjudicial.chapters.ChapterRepository;
 import com.manualjudicial.chapters.ChapterUnlockService;
 import com.manualjudicial.questions.Question;
 import com.manualjudicial.questions.QuestionRepository;
@@ -18,7 +16,6 @@ public class FinalExamService {
     private static final int EXAM_QUESTION_COUNT = 30;
     private static final double PASS_THRESHOLD = 70.0;
 
-    private final ChapterRepository chapterRepository;
     private final QuestionRepository questionRepository;
     private final ChapterUnlockService chapterUnlockService;
 
@@ -32,17 +29,9 @@ public class FinalExamService {
                     "Debes aprobar todos los capítulos antes de acceder al Examen Final.");
         }
 
-        List<Chapter> chapters = chapterRepository
-                .findByManualIdOrderByOrderIndexAsc(manualId);
-
-        List<Question> allQuestions = chapters.stream()
-                .flatMap(ch -> questionRepository.findByChapterId(ch.getId()).stream())
-                .collect(Collectors.toList());
-
-        Collections.shuffle(allQuestions);
+        List<Question> allQuestions = questionRepository.findRandomByManual(manualId, EXAM_QUESTION_COUNT);
 
         return allQuestions.stream()
-                .limit(EXAM_QUESTION_COUNT)
                 .map(q -> ExamQuestionDTO.builder()
                         .id(q.getId())
                         .statement(q.getStatement())
@@ -66,9 +55,16 @@ public class FinalExamService {
         List<ExamResultDTO.QuestionResultDTO> results = new ArrayList<>();
         int correctCount = 0;
 
+        List<Long> questionIds = submission.getAnswers().stream()
+                .map(ExamSubmissionDTO.AnswerDTO::getQuestionId)
+                .collect(Collectors.toList());
+        
+        // N+1 Fix: Fetch all submitted questions at once
+        Map<Long, Question> questionsMap = questionRepository.findAllById(questionIds).stream()
+                .collect(Collectors.toMap(Question::getId, q -> q));
+
         for (ExamSubmissionDTO.AnswerDTO answer : submission.getAnswers()) {
-            Question q = questionRepository.findById(answer.getQuestionId())
-                    .orElse(null);
+            Question q = questionsMap.get(answer.getQuestionId());
             if (q == null) continue;
 
             boolean isCorrect = q.getCorrectOpt().equalsIgnoreCase(answer.getSelectedOpt());

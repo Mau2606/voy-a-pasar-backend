@@ -7,6 +7,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -56,6 +57,25 @@ public class User implements UserDetails {
     @Column(name = "custom_threshold", nullable = false, columnDefinition = "integer default 70")
     private Integer customThreshold = 70;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_type", length = 30)
+    private AccessType accessType;
+
+    @Column(name = "expiration_date")
+    private LocalDateTime expirationDate;
+
+    // ── Dynamic Getters ──────────────────────────────────────────────────────
+
+    public AccountStatus getAccountStatus() {
+        if (this.expirationDate != null && LocalDateTime.now().isAfter(this.expirationDate)) {
+            return AccountStatus.SUSPENDED;
+        }
+        return this.accountStatus;
+    }
+
     // ── UserDetails impl ─────────────────────────────────────────────────────
 
     @Override
@@ -73,6 +93,9 @@ public class User implements UserDetails {
     @Override
     @JsonIgnore
     public boolean isAccountNonExpired() {
+        if (this.expirationDate != null && LocalDateTime.now().isAfter(this.expirationDate)) {
+            return false;
+        }
         return true;
     }
 
@@ -80,7 +103,7 @@ public class User implements UserDetails {
     @Override
     @JsonIgnore
     public boolean isAccountNonLocked() {
-        return accountStatus == null || accountStatus != AccountStatus.SUSPENDED;
+        return getAccountStatus() == null || getAccountStatus() != AccountStatus.INACTIVE;
     }
 
     @Override
@@ -92,6 +115,6 @@ public class User implements UserDetails {
     @Override
     @JsonIgnore
     public boolean isEnabled() {
-        return accountStatus == null || accountStatus == AccountStatus.ACTIVE;
+        return getAccountStatus() == null || getAccountStatus() == AccountStatus.ACTIVE;
     }
 }
