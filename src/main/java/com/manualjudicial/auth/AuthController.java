@@ -34,10 +34,10 @@ public class AuthController {
         // Securely set the JWT as an HttpOnly cookie
         ResponseCookie tokenCookie = ResponseCookie.from("auth_token", authResponse.getToken())
                 .httpOnly(true)
-                .secure(false) // Set to true if using HTTPS in prod
+                .secure(true)
                 .path("/")
                 .maxAge(3 * 60 * 60) // 3 hours
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
         
         response.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
@@ -78,10 +78,10 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> logout(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("auth_token", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(0) // Expire immediately
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
